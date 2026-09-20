@@ -1,0 +1,35 @@
+name: Build NTS-3 units
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-nts3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build logue SDK Docker image
+        run: ./docker/build_image.sh
+
+      - name: Build fb-ring
+        run: ./docker/run_cmd.sh build nts-3_kaoss/fb-ring
+
+      - name: Verify build artifact
+        run: |
+          ls -lh platform/nts-3_kaoss/fb-ring/fb_ring.nts3unit
+
+      - name: Upload fb-ring NTS-3 unit
+        uses: actions/upload-artifact@v4
+        with:
+          name: fb-ring-nts3
+          path: platform/nts-3_kaoss/fb-ring/fb_ring.nts3unit
+          if-no-files-found: error
