@@ -11,7 +11,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
     .target = UNIT_TARGET_PLATFORM | k_unit_module_genericfx,
     .api = UNIT_API_VERSION,
 
-    .dev_id = 0x0,
+    .dev_id = 0x54414D48U,
 
     // Different from the template/pluck unit.
     .unit_id = 0x00000001U,
@@ -31,7 +31,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
       {
         1,
         1000,
-        0,
+        1,
         344,
         k_unit_param_type_msec,
         0,
@@ -44,7 +44,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
       {
         1,
         104,
-        0,
+        1,
         60,
         k_unit_param_type_midi_note,
         0,
