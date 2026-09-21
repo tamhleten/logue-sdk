@@ -1,16 +1,5 @@
 #pragma once
 
-/*
- * Native NTS-3 version of the Pd feedback/ring-mod patch.
- *
- * X     : delay time, 1..1000 ms
- * Y     : ring modulator MIDI pitch, 1..104
- * Depth : feedback gain, 0.000..2.000
- *
- * A new touch fires one excitation.
- * Moving, holding and releasing do not retrigger.
- */
-
 #include <stdint.h>
 #include <stddef.h>
 
@@ -40,7 +29,7 @@ public:
     void reset()
     {
       delay_ms = 344.f;
-      mod_note = 60;      // C4 ~= 261.626 Hz
+      mod_note = 60;
       gain = 1.921f;
     }
 
@@ -49,7 +38,6 @@ public:
 
   uint32_t getBufferSize() const override final
   {
-    // unit.cc interprets this as a number of floats.
     return DELAY_BUFFER_SIZE;
   }
 
@@ -85,7 +73,6 @@ public:
   void init(float *allocated_buffer) override final
   {
     buffer = allocated_buffer;
-
     params.reset();
 
     write_index = 0U;
@@ -137,10 +124,6 @@ public:
                float *__restrict out,
                uint32_t frames) override final
   {
-    (void)in;
-
-    // A touch event only requests a trigger.
-    // We start it here in the audio callback.
     if (trigger_pending)
     {
       trigger_pending = false;
@@ -149,13 +132,11 @@ public:
 
     const Params p = params;
 
-    // Y behaves like Pd [mtof] -> [osc~].
     const float mod_hz = osc_notehzf(p.mod_note);
 
     const float carrier_inc = 262.f / 48000.f;
     const float mod_inc = mod_hz / 48000.f;
 
-    // 1 ms = 48 samples at 48 kHz.
     float delay_samples = p.delay_ms * 48.f;
 
     if (delay_samples < 48.f)
@@ -166,89 +147,107 @@ public:
 
     for (uint32_t i = 0; i < frames; ++i)
     {
-      // ------------------------------------------------------------
-      // [delread~ feedback]
-      // ------------------------------------------------------------
+      // ----------------------------------------------------------
+      // NTS-3 AUDIO INPUT
+      // Collapse stereo input to mono for this mono feedback loop.
+      // ----------------------------------------------------------
+
+      const float input_mono =
+          0.5f * (in[2U * i] + in[2U * i + 1U]);
+
+      // ----------------------------------------------------------
+      // DELAY READ
+      // ----------------------------------------------------------
 
       const float delayed_raw = readDelay(delay_samples);
 
-      // ------------------------------------------------------------
-      // [hip~ 40]
-      //
-      // Simple one-pole 40 Hz highpass.
-      // exp(-2*pi*40/48000) ~= 0.99478
-      // ------------------------------------------------------------
-
+      // 40 Hz highpass
       const float delayed =
           0.99478f * (hp_y1 + delayed_raw - hp_x1);
 
       hp_x1 = delayed_raw;
       hp_y1 = delayed;
 
-      // ------------------------------------------------------------
-      // [osc~ 262] * excitation envelope
-      // ------------------------------------------------------------
+      // ----------------------------------------------------------
+      // TOUCH-TRIGGERED 262 Hz EXCITATION
+      // ----------------------------------------------------------
 
       const float carrier = osc_sinf(carrier_phase);
-      carrier_phase += carrier_inc;
 
+      carrier_phase += carrier_inc;
       if (carrier_phase >= 1.f)
         carrier_phase -= 1.f;
 
-      const float beep = carrier * nextEnvelopeSample();
+      const float beep =
+          carrier * nextEnvelopeSample();
 
-      // ------------------------------------------------------------
-      // feedback output + beep
-      // ------------------------------------------------------------
+      // ----------------------------------------------------------
+      // FEEDBACK PROCESSOR
+      //
+      // The input itself is NOT multiplied by Depth.
+      // Depth only controls what gets fed back around the loop.
+      // ----------------------------------------------------------
 
-      const float mixed = delayed + beep;
+      const float loop_signal =
+          delayed + beep;
 
-      // ------------------------------------------------------------
-      // modulator:
-      // Y MIDI note -> Hz -> sine oscillator
-      // ------------------------------------------------------------
+      const float modulator =
+          osc_sinf(mod_phase);
 
-      const float modulator = osc_sinf(mod_phase);
       mod_phase += mod_inc;
-
       if (mod_phase >= 1.f)
         mod_phase -= 1.f;
 
-      // ------------------------------------------------------------
       // ring modulation
-      // ------------------------------------------------------------
+      float x = loop_signal * modulator;
 
-      float x = mixed * modulator;
-
-      // [clip~ -1 1]
+      // clip -1 .. +1
       if (x > 1.f)
         x = 1.f;
       else if (x < -1.f)
         x = -1.f;
 
-      // [*~ -1]
+      // invert
       x = -x;
 
-      // [expr~ $v1 - 1/3 * pow($v1,3)]
+      // cubic waveshaper:
+      // x - x^3 / 3
       const float shaped =
           x - 0.333333333333f * x * x * x;
 
-      // Depth / GAIN
-      const float feedback_write = shaped * p.gain;
+      // ----------------------------------------------------------
+      // DELAY WRITE
+      //
+      // NEW:
+      //
+      // input enters independently
+      // processed repeat is multiplied by Depth
+      // ----------------------------------------------------------
 
-      // [delwrite~ feedback]
-      buffer[write_index] = feedback_write;
+      float write_sample =
+          input_mono + shaped * p.gain;
+
+      // safety clip before writing into feedback memory
+      if (write_sample > 1.5f)
+        write_sample = 1.5f;
+      else if (write_sample < -1.5f)
+        write_sample = -1.5f;
+
+      buffer[write_index] = write_sample;
 
       ++write_index;
       if (write_index >= DELAY_BUFFER_SIZE)
         write_index = 0U;
 
-      // Original desktop patch outputs the highpassed delay,
-      // attenuated by 0.1, not the excitation directly.
-      const float y = delayed * 0.1f;
+      // ----------------------------------------------------------
+      // WET OUTPUT
+      // NTS-3's normal dry path can remain present externally.
+      // ----------------------------------------------------------
 
-      out[2U * i] = y;
-      out[2U * i + 1U] = y;
+      const float wet = delayed * 0.1f;
+
+      out[2U * i] = wet;
+      out[2U * i + 1U] = wet;
     }
   }
 
@@ -261,30 +260,12 @@ public:
     (void)x;
     (void)y;
 
-    // This is the native equivalent of our Pd "bang".
-    //
-    // ONLY a genuinely new finger-down triggers the sound.
-    // moved/stationary/ended/cancelled do nothing.
+    // Exactly one trigger for a new finger-down.
     if (phase == k_unit_touch_phase_began)
       trigger_pending = true;
   }
 
 private:
-  // ------------------------------------------------------------
-  // Desktop patch excitation:
-  //
-  // bang:
-  //   [0.5 100(
-  //
-  // and after 500 ms:
-  //   [0 100(
-  //
-  // Result:
-  //   0-100 ms   ramp toward 0.5
-  //   100-500 ms hold 0.5
-  //   500-600 ms ramp to 0
-  // ------------------------------------------------------------
-
   void trigger()
   {
     env_start = env;
@@ -297,9 +278,9 @@ private:
     if (!env_active)
       return env;
 
-    static constexpr uint32_t ATTACK_END  = 4800U;  // 100 ms
-    static constexpr uint32_t RELEASE_BEG = 24000U; // 500 ms
-    static constexpr uint32_t RELEASE_END = 28800U; // 600 ms
+    static constexpr uint32_t ATTACK_END  = 4800U;
+    static constexpr uint32_t RELEASE_BEG = 24000U;
+    static constexpr uint32_t RELEASE_END = 28800U;
 
     if (env_age < ATTACK_END)
     {
@@ -331,7 +312,6 @@ private:
     return env;
   }
 
-  // Linear interpolated variable delay reader.
   inline float readDelay(float delay_samples) const
   {
     float pos =
@@ -341,12 +321,13 @@ private:
       pos += static_cast<float>(DELAY_BUFFER_SIZE);
 
     uint32_t i0 = static_cast<uint32_t>(pos);
-    uint32_t i1 = i0 + 1U;
 
+    uint32_t i1 = i0 + 1U;
     if (i1 >= DELAY_BUFFER_SIZE)
       i1 = 0U;
 
-    const float frac = pos - static_cast<float>(i0);
+    const float frac =
+        pos - static_cast<float>(i0);
 
     const float a = buffer[i0];
     const float b = buffer[i1];
