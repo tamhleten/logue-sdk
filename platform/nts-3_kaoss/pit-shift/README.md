@@ -11,9 +11,10 @@ independently cycling triangular envelope.
 
 Controls:
 
-- X — `shift` ratio from 0.25x to 8.00x (1.00x is the original pitch)
+- X — centered pitch shift: left runs from 0.25x to 1.00x, right runs from
+  1.00x to 8.00x
 - Y — unused
-- Depth — wet output level from 0.000 to 1.000
+- Depth — dry/wet crossfade from dry at 0.000 to fully wet at 1.000
 
-The unit outputs only the processed signal. The NTS-3 generic-effect routing
-provides the dry path.
+X uses an exponential pitch mapping on each side of center, so octave intervals
+receive even pad travel and unison is exactly at the physical midpoint.

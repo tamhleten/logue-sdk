@@ -44,7 +44,7 @@ public:
     switch (index)
     {
     case SHIFT:
-      params.ratio = static_cast<float>(value) * 0.01f;
+      params.ratio = shiftRatio(value);
       break;
     case WET_LEVEL:
       params.wet = static_cast<float>(value) * 0.001f;
@@ -52,6 +52,15 @@ public:
     default:
       break;
     }
+  }
+
+  static float shiftRatio(int32_t value)
+  {
+    // The exposed parameter is a centered pad position (-1000 .. +1000).
+    // Give each half of X its own exponential pitch range so that unity is
+    // exactly at the physical midpoint while retaining 0.25x and 8.00x.
+    const float position = static_cast<float>(value) * 0.001f;
+    return exp2f(position < 0.f ? 2.f * position : 3.f * position);
   }
 
   const char *getParameterStrValue(uint8_t, int32_t) const override final
@@ -150,9 +159,11 @@ public:
       if (write_index >= CHANNEL_BUFFER_SIZE)
         write_index = 0U;
 
-      // Generic FX routing supplies the dry path; this unit returns wet only.
-      out[2U * i] = target.wet * wet_l;
-      out[2U * i + 1U] = target.wet * wet_r;
+      // Depth is a true dry/wet crossfade: zero is the untouched input and
+      // one is the fully pitch-shifted signal.
+      const float dry = 1.f - target.wet;
+      out[2U * i] = dry * in[2U * i] + target.wet * wet_l;
+      out[2U * i + 1U] = dry * in[2U * i + 1U] + target.wet * wet_r;
     }
   }
 
