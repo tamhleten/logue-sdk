@@ -3,12 +3,13 @@
 #include <cstdio>
 #include <vector>
 
-static float measure(int shift_position)
+static float measure(int shift_position, int window_length = Effect::DELAY_LENGTH)
 {
   Effect effect;
   std::vector<float> memory(effect.getBufferSize(), 0.f);
   effect.init(memory.data());
   effect.setParameter(Effect::SHIFT, shift_position);
+  effect.setParameter(Effect::WINDOW_LENGTH, window_length);
   effect.setParameter(Effect::WET_LEVEL, 1000);
 
   const unsigned frames = 64;
@@ -83,11 +84,15 @@ int main()
   const float down = measure(-500);
   const float unity = measure(0);
   const float up = measure(333);
-  std::printf("0.5x: %.0f Hz, 1x: %.0f Hz, 2x: %.0f Hz\n", down, unity, up);
+  const float short_window_up = measure(333, Effect::MIN_WINDOW_LENGTH);
+  std::printf("0.5x: %.0f Hz, 1x: %.0f Hz, 2x: %.0f Hz, "
+              "2x short window: %.0f Hz\n",
+              down, unity, up, short_window_up);
   const bool mapping_ok = std::fabs(Effect::shiftRatio(-1000) - 0.25f) < 0.0001f &&
                           std::fabs(Effect::shiftRatio(0) - 1.f) < 0.0001f &&
                           std::fabs(Effect::shiftRatio(1000) - 8.f) < 0.0001f;
   return (mapping_ok && dryWetMixOk() && down > 210.f && down < 230.f &&
           unity > 430.f && unity < 450.f &&
-          up > 860.f && up < 900.f) ? 0 : 1;
+          up > 860.f && up < 900.f &&
+          short_window_up > 800.f && short_window_up < 950.f) ? 0 : 1;
 }

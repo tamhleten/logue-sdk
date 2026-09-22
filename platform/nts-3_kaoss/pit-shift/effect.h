@@ -10,7 +10,7 @@ class Effect : public Processor
 public:
   static constexpr float SAMPLE_RATE = 48000.f;
   static constexpr uint32_t DELAY_LENGTH = 5024U;
-  static constexpr uint32_t HALF_LENGTH = DELAY_LENGTH / 2U;
+  static constexpr uint32_t MIN_WINDOW_LENGTH = 1024U;
   static constexpr uint32_t CHANNEL_BUFFER_SIZE = DELAY_LENGTH + 2U;
   static constexpr uint32_t AUDIO_BUFFER_SIZE = 2U * CHANNEL_BUFFER_SIZE;
   static constexpr uint32_t WINDOW_TABLE_SIZE = DELAY_LENGTH + 1U;
@@ -19,6 +19,7 @@ public:
   enum
   {
     SHIFT = 0U,
+    WINDOW_LENGTH,
     WET_LEVEL,
     NUM_PARAMS
   };
@@ -26,11 +27,13 @@ public:
   struct Params
   {
     float ratio;
+    float window_length;
     float wet;
 
     void reset()
     {
       ratio = 1.f;
+      window_length = static_cast<float>(DELAY_LENGTH);
       wet = 1.f;
     }
 
@@ -45,6 +48,9 @@ public:
     {
     case SHIFT:
       params.ratio = shiftRatio(value);
+      break;
+    case WINDOW_LENGTH:
+      params.window_length = static_cast<float>(value);
       break;
     case WET_LEVEL:
       params.wet = static_cast<float>(value) * 0.001f;
@@ -75,7 +81,8 @@ public:
     window_table = allocated_buffer ? allocated_buffer + AUDIO_BUFFER_SIZE : nullptr;
     params.reset();
     current_ratio = 1.f;
-    sweep_samples = 0.f;
+    current_window_length = static_cast<float>(DELAY_LENGTH);
+    sweep_phase = 0.f;
     write_index = 0U;
 
     if (window_table)
@@ -99,9 +106,10 @@ public:
 
   void reset() override final
   {
-    sweep_samples = 0.f;
+    sweep_phase = 0.f;
     write_index = 0U;
     current_ratio = params.ratio;
+    current_window_length = params.window_length;
 
     if (buffer_l)
       for (uint32_t i = 0; i < AUDIO_BUFFER_SIZE; ++i)
@@ -126,24 +134,29 @@ public:
       // SuperCollider's example uses XLine for smooth shift changes.  This
       // one-pole slew gives NTS-3 pad movements the same useful behaviour.
       current_ratio += 0.002f * (target.ratio - current_ratio);
+      current_window_length +=
+          0.002f * (target.window_length - current_window_length);
 
-      // Sweep.ar(Impulse.kr(0), 1.0 - shift), expressed in samples.
-      sweep_samples += 1.f - current_ratio;
-      while (sweep_samples >= static_cast<float>(DELAY_LENGTH))
-        sweep_samples -= static_cast<float>(DELAY_LENGTH);
-      while (sweep_samples < 0.f)
-        sweep_samples += static_cast<float>(DELAY_LENGTH);
+      // Keep the sweep as normalized phase so changing the window length does
+      // not reset the grains or introduce a phase jump.
+      sweep_phase += (1.f - current_ratio) / current_window_length;
+      while (sweep_phase >= 1.f)
+        sweep_phase -= 1.f;
+      while (sweep_phase < 0.f)
+        sweep_phase += 1.f;
 
-      // Wrap.ar([sweep, sweep + halfLength], 0, delayLength).
-      const float delay_a = sweep_samples;
-      float delay_b = sweep_samples + static_cast<float>(HALF_LENGTH);
-      if (delay_b >= static_cast<float>(DELAY_LENGTH))
-        delay_b -= static_cast<float>(DELAY_LENGTH);
+      // Two delay taps are half a grain apart.
+      const float delay_a = sweep_phase * current_window_length;
+      float phase_b = sweep_phase + 0.5f;
+      if (phase_b >= 1.f)
+        phase_b -= 1.f;
+      const float delay_b = phase_b * current_window_length;
 
       // Phase-linked Hann crossfade.  At either delay tap's wrap point that
       // tap has zero gain, eliminating the discontinuity.  The complementary
       // windows sum to one throughout the sweep.
-      const float window_b = readWindow(sweep_samples);
+      const float window_b =
+          readWindow(sweep_phase * static_cast<float>(DELAY_LENGTH));
       const float window_a = 1.f - window_b;
 
       // Write first so a zero-length tap really is the current input sample.
@@ -199,6 +212,7 @@ private:
   float *window_table = nullptr;
   Params params;
   uint32_t write_index = 0U;
-  float sweep_samples = 0.f;
+  float sweep_phase = 0.f;
   float current_ratio = 1.f;
+  float current_window_length = static_cast<float>(DELAY_LENGTH);
 };
