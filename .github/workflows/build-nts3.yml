@@ -33,3 +33,17 @@ jobs:
           name: fb-ring-nts3
           path: platform/nts-3_kaoss/fb-ring/fb_ring.nts3unit
           if-no-files-found: error
+
+      - name: Build pit-shift
+        run: ./docker/run_cmd.sh build nts-3_kaoss/pit-shift
+
+      - name: Verify pit-shift artifact
+        run: |
+          ls -lh platform/nts-3_kaoss/pit-shift/pit_shift.nts3unit
+
+      - name: Upload pit-shift NTS-3 unit
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-shift-nts3
+          path: platform/nts-3_kaoss/pit-shift/pit_shift.nts3unit
+          if-no-files-found: error
