@@ -47,3 +47,25 @@ jobs:
           name: pit-shift-nts3
           path: platform/nts-3_kaoss/pit-shift/pit_shift.nts3unit
           if-no-files-found: error
+
+      - name: Host-test afterimage
+        run: |
+          g++ -std=c++11 -O2 \
+            -Iplatform/nts-3_kaoss/common \
+            platform/nts-3_kaoss/afterimage/test_host.cc \
+            -o /tmp/afterimage-test
+          /tmp/afterimage-test
+
+      - name: Build afterimage
+        run: ./docker/run_cmd.sh build nts-3_kaoss/afterimage
+
+      - name: Verify afterimage artifact
+        run: |
+          ls -lh platform/nts-3_kaoss/afterimage/afterimage.nts3unit
+
+      - name: Upload afterimage NTS-3 unit
+        uses: actions/upload-artifact@v4
+        with:
+          name: afterimage-nts3
+          path: platform/nts-3_kaoss/afterimage/afterimage.nts3unit
+          if-no-files-found: error
