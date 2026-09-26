@@ -15,9 +15,9 @@ public:
   enum
   {
     LENGTH = 0U,
-    SEPARATION,
-    DRY_WET,
     FEEDBACK,
+    DRY_WET,
+    SEPARATION,
     MOD_RATE,
     NUM_PARAMS
   };
@@ -51,15 +51,15 @@ public:
     case LENGTH:
       params.delay_samples = static_cast<float>(value) * 48.f;
       break;
-    case SEPARATION:
-      // Header value is in tenths of a millisecond.
-      params.separation_samples = static_cast<float>(value) * 4.8f;
+    case FEEDBACK:
+      params.feedback = static_cast<float>(value) * 0.001f;
       break;
     case DRY_WET:
       params.mix = (static_cast<float>(value) + 1000.f) * 0.0005f;
       break;
-    case FEEDBACK:
-      params.feedback = static_cast<float>(value) * 0.001f;
+    case SEPARATION:
+      // Header value is in tenths of a millisecond.
+      params.separation_samples = static_cast<float>(value) * 4.8f;
       break;
     case MOD_RATE:
       params.modulation_rate = static_cast<float>(value) * 0.01f;

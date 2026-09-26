@@ -8,10 +8,11 @@ feedback path.
 Controls:
 
 - X — main delay length from 40 to 2000 ms, exponentially mapped
-- Y — complementary stereo separation from 0.0 to 30.0 ms, exponentially mapped
+- Y — feedback from 0.000 to 0.980, linearly mapped; default 0.700
 - Depth — true linear dry/wet crossfade: `D100` is dry only, `BALN` is
   50/50, and `W100` is wet only
-- Feedback — 0.000 to 0.980, available as an additional parameter; default 0.700
+- Separation — complementary stereo separation from 0.0 to 30.0 ms,
+  available as an additional parameter; default 1.2 ms
 - Mod Rate — 0.10 to 30.00 Hz, available as an additional parameter; default
   12.00 Hz, matching the SuperCollider patch
 
