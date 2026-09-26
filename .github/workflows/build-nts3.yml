@@ -69,3 +69,25 @@ jobs:
           name: afterimage-nts3
           path: platform/nts-3_kaoss/afterimage/afterimage.nts3unit
           if-no-files-found: error
+
+      - name: Host-test dub echo
+        run: |
+          g++ -std=c++11 -O2 \
+            -Iplatform/nts-3_kaoss/common \
+            platform/nts-3_kaoss/dub-echo/test_host.cc \
+            -o /tmp/dub-echo-test
+          /tmp/dub-echo-test
+
+      - name: Build dub echo
+        run: ./docker/run_cmd.sh build nts-3_kaoss/dub-echo
+
+      - name: Verify dub echo artifact
+        run: |
+          ls -lh platform/nts-3_kaoss/dub-echo/dub_echo.nts3unit
+
+      - name: Upload dub echo NTS-3 unit
+        uses: actions/upload-artifact@v4
+        with:
+          name: dub-echo-nts3
+          path: platform/nts-3_kaoss/dub-echo/dub_echo.nts3unit
+          if-no-files-found: error
