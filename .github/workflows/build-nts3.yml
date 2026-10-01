@@ -113,3 +113,25 @@ jobs:
           name: scrap-metal-nts3
           path: platform/nts-3_kaoss/scrap-metal/scrap_metal.nts3unit
           if-no-files-found: error
+
+      - name: Host-test Ricochet
+        run: |
+          g++ -std=c++11 -O2 \
+            -Iplatform/nts-3_kaoss/common \
+            platform/nts-3_kaoss/ricochet/test_host.cc \
+            -o /tmp/ricochet-test
+          /tmp/ricochet-test
+
+      - name: Build Ricochet
+        run: ./docker/run_cmd.sh build nts-3_kaoss/ricochet
+
+      - name: Verify Ricochet artifact
+        run: |
+          ls -lh platform/nts-3_kaoss/ricochet/ricochet.nts3unit
+
+      - name: Upload Ricochet NTS-3 unit
+        uses: actions/upload-artifact@v4
+        with:
+          name: ricochet-nts3
+          path: platform/nts-3_kaoss/ricochet/ricochet.nts3unit
+          if-no-files-found: error
