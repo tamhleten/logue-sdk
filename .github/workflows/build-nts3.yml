@@ -135,3 +135,25 @@ jobs:
           name: ricochet-nts3
           path: platform/nts-3_kaoss/ricochet/ricochet.nts3unit
           if-no-files-found: error
+
+
+      - name: Host-test Shermanish
+        run: |
+          g++ -std=c++11 -O2 \
+            -Iplatform/nts-3_kaoss/common \
+            platform/nts-3_kaoss/shermanish/test_host.cc \
+            -o /tmp/shermanish-test
+          /tmp/shermanish-test
+
+      - name: Build Shermanish
+        run: ./docker/run_cmd.sh build nts-3_kaoss/shermanish
+
+      - name: Verify Shermanish artifact
+        run: ls -lh platform/nts-3_kaoss/shermanish/shermanish.nts3unit
+
+      - name: Upload Shermanish
+        uses: actions/upload-artifact@v4
+        with:
+          name: shermanish-nts3
+          path: platform/nts-3_kaoss/shermanish/shermanish.nts3unit
+          if-no-files-found: error
