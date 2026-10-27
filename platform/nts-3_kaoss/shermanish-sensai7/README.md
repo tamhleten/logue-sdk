@@ -50,12 +50,12 @@ The output is **fully wet**; mix dry sax and loop channels on the Zoom L6max. Ne
 
 ## Build and test
 
-\`\`\`sh
+```sh
 g++ -std=c++11 -O2 -Iplatform/nts-3_kaoss/common platform/nts-3_kaoss/shermanish-sensai7/test_host.cc -o /tmp/shermanish-s7-test
 /tmp/shermanish-s7-test
 ./docker/run_cmd.sh build nts-3_kaoss/shermanish-sensai7
-\`\`\`
+```
 
-Output: \`platform/nts-3_kaoss/shermanish-sensai7/shermanish_s7.nts3unit\`.
+Output: `platform/nts-3_kaoss/shermanish-sensai7/shermanish_s7.nts3unit`.
 
 The GitHub Actions workflow builds both the naked and Sensai7 editions as separate downloadable artifacts.
