@@ -172,6 +172,10 @@ public:
   float currentMorph() const { return smoothstep((smooth_morph-.4f)*5.f); }
   float currentClockPhase() const { return clock_phase; }
   float currentBpm() const { return smooth_bpm; }
+  // Exposed for host-side verification of smooth transitions.
+  float currentInterval() const { return smooth_interval; }
+  float currentDrive() const { return smooth_drive; }
+  float currentEnvAmount() const { return smooth_env; }
 
 private:
   static float clamp01(float x) {
