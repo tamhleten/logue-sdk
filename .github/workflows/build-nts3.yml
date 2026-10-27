@@ -135,3 +135,19 @@ jobs:
           name: ricochet-nts3
           path: platform/nts-3_kaoss/ricochet/ricochet.nts3unit
           if-no-files-found: error
+
+
+      - name: Host-test CC14 Probe
+        run: |
+          g++ -std=c++11 -O2 -Iplatform/nts-3_kaoss/common platform/nts-3_kaoss/cc14-probe/test_host.cc -o /tmp/cc14-test
+          /tmp/cc14-test
+
+      - name: Build CC14 Probe
+        run: ./docker/run_cmd.sh build nts-3_kaoss/cc14-probe
+
+      - name: Upload CC14 Probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: cc14-probe-nts3
+          path: platform/nts-3_kaoss/cc14-probe/*.nts3unit
+          if-no-files-found: error
