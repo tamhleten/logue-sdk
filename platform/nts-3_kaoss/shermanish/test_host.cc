@@ -47,7 +47,7 @@ static bool monoStereoTest() {
 }
 static bool feedbackTailTest() {
   Effect e;e.init(nullptr);e.setParameter(Effect::REGEN,950);
-  e.setParameter(Effect::PITCH,440);e.setParameter(Effect::DRY_WET,1000);
+  e.setParameter(Effect::PITCH,440);
   std::vector<float> in(2U*96000,0.f),out;
   for(unsigned i=0;i<12000;++i)in[2*i]=in[2*i+1]=.3f*std::sin(i*6.2831853f*110.f/48000.f);
   process(e,in,out);
@@ -59,7 +59,7 @@ static bool feedbackTailTest() {
 static bool hotStability() {
   Effect e;e.init(nullptr);e.setParameter(Effect::REGEN,1000);
   e.setParameter(Effect::DRIVE,1000);e.setParameter(Effect::ROUTING,2);
-  e.setParameter(Effect::ENV_TIME,5);e.setParameter(Effect::ENVELOPE,1000);
+  e.setParameter(Effect::ENV_TIME,5);e.setParameter(Effect::ENV_AMT,1000);
   std::vector<float> in(2U*240000),out;
   for(unsigned i=0;i<240000;++i) {
     float v=4.f*(std::sin(.0345f*i)+.7f*std::sin(.1373f*i));
@@ -96,7 +96,7 @@ static bool triggeredTest() {
 static bool tempoTest() {
   Effect e;e.init(nullptr);
   e.setParameter(Effect::ENV_TIME,6);
-  e.setParameter(Effect::ENVELOPE,800);
+  e.setParameter(Effect::ENV_AMT,800);
   e.setTempo(120.f);
   std::vector<float> silence(2U*3000,0.f),out;
   process(e,silence,out);
