@@ -4,7 +4,7 @@
 #include "processor.h"
 
 // Sherman Filterbank-inspired dual-bandpass performance instrument.
-// The two envelopes run continuously; Y smoothly crossfades their modulation.
+// The two envelopes run continuously; DEPTH smoothly crossfades their modulation.
 // Intended for mono sax/looper via the L6max SUB OUT, with stereo wet output.
 // Not a circuit model of the analogue Sherman Filterbank.
 class Effect : public Processor {
@@ -62,7 +62,12 @@ public:
     // Only the filter coefficients depend on expensive trigonometric
     // functions. Update once per block; interpolate coefficients per sample.
     smooth_pitch+=.11f*(params.pitch-smooth_pitch);
+    #ifdef SHERMANISH_SENSAI7
+    // ~110 ms time constant for gliding between the eight interval targets.
+    smooth_interval+=.012f*(params.semitones-smooth_interval);
+#else
     smooth_interval+=.11f*(params.semitones-smooth_interval);
+#endif
     const float hz1=55.f*exp2f(smooth_pitch*(5.50635267f/1000.f));
     const float hz2=hz1*exp2f(smooth_interval/12.f);
     const float cutoff_mod=exp2f(3.0f*smooth_env*envelope);
@@ -89,8 +94,16 @@ public:
 
     for(uint32_t i=0;i<frames;++i) {
       smooth_regen+=.0008f*(target_regen-smooth_regen);
+      #ifdef SHERMANISH_SENSAI7
+      smooth_drive+=.0004f*(target_drive-smooth_drive); // ~52 ms
+#else
       smooth_drive+=.0008f*(target_drive-smooth_drive);
+#endif
+      #ifdef SHERMANISH_SENSAI7
+      smooth_env+=.00028f*(target_env-smooth_env); // ~74 ms
+#else
       smooth_env+=.0008f*(target_env-smooth_env);
+#endif
       smooth_morph+=.0018f*(target_morph-smooth_morph);
       smooth_bpm+=.00015f*(target_bpm-smooth_bpm);
 
@@ -124,7 +137,7 @@ public:
       }
       stepEnvelope(seconds,clocked);
 
-      // At Y < 40%, only the follower is heard; at Y > 60%, only
+      // At MORPH < 40%, only the follower is heard; at > 60%, only
       // the triggered ADSR. Both stay active through the center.
       const float m=smoothstep((smooth_morph-.4f)*5.f);
       envelope=(1.f-m)*follower+m*adsr;
