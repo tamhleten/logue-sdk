@@ -14,13 +14,19 @@ static bool safe(const std::vector<float>&x) {
   for(float v:x) if(!std::isfinite(v)||std::fabs(v)>2.7f)return false;
   return true;
 }
-static bool dryTest() {
-  Effect e;e.init(nullptr);e.setParameter(Effect::DRY_WET,-1000);e.reset();
-  std::vector<float> in(8000),out;
-  for(unsigned i=0;i<in.size();++i)in[i]=.5f*std::sin(.007f*i);
-  process(e,in,out);
-  for(unsigned i=0;i<in.size();++i)if(std::fabs(in[i]-out[i])>.000001f)return false;
-  return true;
+static bool morphTest() {
+  Effect e;e.init(nullptr);
+  e.setParameter(Effect::ENV_TIME,2);
+  std::vector<float> in(2U*48000),out;
+  for(unsigned i=0;i<48000;++i) in[2*i]=in[2*i+1]=.4f*std::sin(.025f*i);
+  e.setParameter(Effect::MORPH,0);process(e,in,out);
+  const float bottom=e.currentMorph();
+  e.setParameter(Effect::MORPH,500);process(e,in,out);
+  const float middle=e.currentMorph();
+  e.setParameter(Effect::MORPH,1000);process(e,in,out);
+  const float top=e.currentMorph();
+  std::printf("morph bottom %.3f middle %.3f top %.3f\n",bottom,middle,top);
+  return safe(out)&&bottom<.01f&&middle>.4f&&middle<.6f&&top>.99f;
 }
 static bool monoStereoTest() {
   Effect e;e.init(nullptr);e.setParameter(Effect::PITCH,420);
@@ -53,7 +59,7 @@ static bool feedbackTailTest() {
 static bool hotStability() {
   Effect e;e.init(nullptr);e.setParameter(Effect::REGEN,1000);
   e.setParameter(Effect::DRIVE,1000);e.setParameter(Effect::ROUTING,2);
-  e.setParameter(Effect::ENV_MODE,Effect::CLOCK_16TH);e.setParameter(Effect::ENVELOPE,1000);
+  e.setParameter(Effect::ENV_TIME,5);e.setParameter(Effect::ENVELOPE,1000);
   std::vector<float> in(2U*240000),out;
   for(unsigned i=0;i<240000;++i) {
     float v=4.f*(std::sin(.0345f*i)+.7f*std::sin(.1373f*i));
@@ -64,8 +70,8 @@ static bool hotStability() {
 
 static bool followerTest() {
   Effect e;e.init(nullptr);
-  e.setParameter(Effect::ENV_MODE,Effect::FOLLOW_FAST);
-  e.setParameter(Effect::ENVELOPE,800);
+  e.setParameter(Effect::MORPH,0);
+  e.setParameter(Effect::ENV_AMT,800);
   std::vector<float> in(2U*24000),out;
   for(unsigned i=0;i<24000;++i)in[2*i]=in[2*i+1]=.45f*std::sin(2.f*3.14159265f*110.f*i/48000.f);
   process(e,in,out);
@@ -77,7 +83,7 @@ static bool followerTest() {
 }
 static bool triggeredTest() {
   Effect e;e.init(nullptr);
-  e.setParameter(Effect::ENV_MODE,Effect::TRIG_PUNCH);
+  e.setParameter(Effect::MORPH,1000);
   std::vector<float> in(2U*8000),out;
   for(unsigned i=0;i<8000;++i)in[2*i]=in[2*i+1]=.65f*std::sin(6.2831853f*130.f*i/48000.f);
   process(e,in,out);
@@ -89,7 +95,7 @@ static bool triggeredTest() {
 }
 static bool tempoTest() {
   Effect e;e.init(nullptr);
-  e.setParameter(Effect::ENV_MODE,Effect::CLOCK_8TH);
+  e.setParameter(Effect::ENV_TIME,6);
   e.setParameter(Effect::ENVELOPE,800);
   e.setTempo(120.f);
   std::vector<float> silence(2U*3000,0.f),out;
@@ -107,8 +113,8 @@ static bool tempoTest() {
 }
 
 int main(){
-  bool a=dryTest(),b=monoStereoTest(),c=feedbackTailTest(),d=hotStability();
+  bool a=morphTest(),b=monoStereoTest(),c=feedbackTailTest(),d=hotStability();
   bool follower=followerTest(),trigger=triggeredTest(),tempo=tempoTest();
-  std::printf("dry=%d mono=%d tail=%d hot=%d follower=%d trigger=%d tempo=%d\n",a,b,c,d,follower,trigger,tempo);
+  std::printf("morph=%d mono=%d tail=%d hot=%d follower=%d trigger=%d tempo=%d\n",a,b,c,d,follower,trigger,tempo);
   return a&&b&&c&&d&&follower&&trigger&&tempo?0:1;
 }
