@@ -53,7 +53,7 @@ static bool feedbackTailTest() {
 static bool hotStability() {
   Effect e;e.init(nullptr);e.setParameter(Effect::REGEN,1000);
   e.setParameter(Effect::DRIVE,1000);e.setParameter(Effect::ROUTING,2);
-  e.setParameter(Effect::WOBBLE,1000);e.setParameter(Effect::ENVELOPE,1000);
+  e.setParameter(Effect::ENV_MODE,Effect::CLOCK_16TH);e.setParameter(Effect::ENVELOPE,1000);
   std::vector<float> in(2U*240000),out;
   for(unsigned i=0;i<240000;++i) {
     float v=4.f*(std::sin(.0345f*i)+.7f*std::sin(.1373f*i));
@@ -61,8 +61,54 @@ static bool hotStability() {
   }
   process(e,in,out);return safe(out);
 }
+
+static bool followerTest() {
+  Effect e;e.init(nullptr);
+  e.setParameter(Effect::ENV_MODE,Effect::FOLLOW_FAST);
+  e.setParameter(Effect::ENVELOPE,800);
+  std::vector<float> in(2U*24000),out;
+  for(unsigned i=0;i<24000;++i)in[2*i]=in[2*i+1]=.45f*std::sin(2.f*3.14159265f*110.f*i/48000.f);
+  process(e,in,out);
+  const float active=e.currentEnvelope();
+  in.assign(2U*48000,0.f);process(e,in,out);
+  const float rest=e.currentEnvelope();
+  std::printf("follower active %.4f rest %.4f\n",active,rest);
+  return safe(out)&&active>.3f&&rest<active*.4f;
+}
+static bool triggeredTest() {
+  Effect e;e.init(nullptr);
+  e.setParameter(Effect::ENV_MODE,Effect::TRIG_PUNCH);
+  std::vector<float> in(2U*8000),out;
+  for(unsigned i=0;i<8000;++i)in[2*i]=in[2*i+1]=.65f*std::sin(6.2831853f*130.f*i/48000.f);
+  process(e,in,out);
+  const float active=e.currentEnvelope();
+  in.assign(2U*70000,0.f);process(e,in,out);
+  const float rest=e.currentEnvelope();
+  std::printf("trigger active %.4f rest %.4f\n",active,rest);
+  return safe(out)&&active>.30f&&rest<.03f;
+}
+static bool tempoTest() {
+  Effect e;e.init(nullptr);
+  e.setParameter(Effect::ENV_MODE,Effect::CLOCK_8TH);
+  e.setParameter(Effect::ENVELOPE,800);
+  e.setTempo(120.f);
+  std::vector<float> silence(2U*3000,0.f),out;
+  process(e,silence,out);
+  const float phase=e.currentClockPhase();
+  e.tempo4ppqnTick(2U);
+  std::vector<float> next(2U*64,0.f);
+  process(e,next,out);
+  const float reset=e.currentClockPhase();
+  e.setTempo(60.f);
+  silence.assign(2U*48000,0.f);
+  process(e,silence,out);
+  std::printf("tempo phase %.4f reset %.4f bpm %.2f\n",phase,reset,e.currentBpm());
+  return safe(out)&&phase>.2f&&reset<.02f&&fabsf(e.currentBpm()-60.f)<.1f;
+}
+
 int main(){
   bool a=dryTest(),b=monoStereoTest(),c=feedbackTailTest(),d=hotStability();
-  std::printf("dry=%d mono=%d tail=%d hot=%d\n",a,b,c,d);
-  return a&&b&&c&&d?0:1;
+  bool follower=followerTest(),trigger=triggeredTest(),tempo=tempoTest();
+  std::printf("dry=%d mono=%d tail=%d hot=%d follower=%d trigger=%d tempo=%d\n",a,b,c,d,follower,trigger,tempo);
+  return a&&b&&c&&d&&follower&&trigger&&tempo?0:1;
 }
