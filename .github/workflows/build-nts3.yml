@@ -157,3 +157,25 @@ jobs:
           name: shermanish-nts3
           path: platform/nts-3_kaoss/shermanish/shermanish.nts3unit
           if-no-files-found: error
+
+
+      - name: Host-test Shermanish S7 decoder and smoothing
+        run: |
+          g++ -std=c++11 -O2 \
+            -Iplatform/nts-3_kaoss/common \
+            platform/nts-3_kaoss/shermanish-sensai7/test_host.cc \
+            -o /tmp/shermanish-s7-test
+          /tmp/shermanish-s7-test
+
+      - name: Build Shermanish S7
+        run: ./docker/run_cmd.sh build nts-3_kaoss/shermanish-sensai7
+
+      - name: Verify Shermanish S7 artifact
+        run: ls -lh platform/nts-3_kaoss/shermanish-sensai7/shermanish_s7.nts3unit
+
+      - name: Upload Shermanish S7
+        uses: actions/upload-artifact@v4
+        with:
+          name: shermanish-s7-nts3
+          path: platform/nts-3_kaoss/shermanish-sensai7/shermanish_s7.nts3unit
+          if-no-files-found: error
