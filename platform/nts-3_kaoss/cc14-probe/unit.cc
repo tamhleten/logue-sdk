@@ -18,16 +18,7 @@ __unit_callback int8_t unit_init(const unit_runtime_desc_t *desc)
     return k_unit_err_samplerate;
   if (desc->input_channels != 2 || desc->output_channels != 2)
     return k_unit_err_geometry;
-  if (!desc->hooks.sdram_alloc)
-    return k_unit_err_memory;
-
-  float *allocated = reinterpret_cast<float *>(
-      desc->hooks.sdram_alloc(s_effect_instance.getBufferSize() * sizeof(float)));
-  if (!allocated)
-    return k_unit_err_memory;
-
-  std::fill(allocated, allocated + s_effect_instance.getBufferSize(), 0.f);
-  s_effect_instance.init(allocated);
+  s_effect_instance.init(nullptr);
 
   for (int id = 0; id < UNIT_GENERICFX_MAX_PARAM_COUNT; ++id)
     cached_values[id] = static_cast<int32_t>(unit_header.common.params[id].init);
